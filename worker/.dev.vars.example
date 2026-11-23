@@ -1,0 +1,9 @@
+# Copy to .dev.vars for local `wrangler dev`. Never commit .dev.vars.
+# Project-wide values mirroring wrangler.toml [vars].
+ALLOWED_ORIGINS=https://libre.tv,http://localhost:5173
+R2_ACCOUNT_ID=YOUR_R2_ACCOUNT_ID
+R2_ACCESS_KEY_ID=YOUR_R2_ACCESS_KEY_ID
+PLAYBACK_PRESIGN_TTL_SECONDS=1800
+
+# SECRETS — local only; on remote use `wrangler secret put`.
+R2_SECRET_ACCESS_KEY=YOUR_R2_SECRET_ACCESS_KEY

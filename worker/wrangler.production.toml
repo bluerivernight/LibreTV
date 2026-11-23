@@ -1,0 +1,47 @@
+# Libre API — production configuration (INTERIM: no R2, R2 billing declined).
+#
+# Until R2 is enabled on the account (requires adding a payment method, which is
+# deferred), the worker is deployed WITHOUT the [[r2_buckets]] binding. All
+# non-playback endpoints (health/auth/catalog/search/session) run fully against D1.
+# Playback endpoints return JSON errors (env.MEDIA_BUCKET undefined → r2Error).
+#
+# Deploy:  npx wrangler deploy --config worker/wrangler.production.toml
+#
+# Re-enable R2 later by restoring the [[r2_buckets]] block + real R2 vars and
+# re-deploying (no source changes required — the worker degrades gracefully).
+
+name = "libre-api"
+main = "src/index.ts"
+compatibility_date = "2026-09-11"
+
+[vars]
+# §14 — origins allowed to call the API from the browser. Comma-separated.
+# Interim: Pages SPA will be served from <project>.pages.dev until the
+# libre.tv zone is activated. "http://localhost:5173" retained for local dev
+# against this deployment; remove once libre.tv is live.
+ALLOWED_ORIGINS = "https://libre.tv,https://libretv.pages.dev,http://localhost:5173"
+# §15/§9.2 — R2 S3 credentials are NOT set here in the interim (R2 deferred).
+# Presigned playback will return #PRESIGN_ERROR lines until real values exist.
+PLAYBACK_PRESIGN_TTL_SECONDS = "1800"
+
+# §8 — D1 authoritative relational state (production database).
+[[d1_databases]]
+binding = "DB"
+database_name = "libre-db"
+database_id = "663cb5c9-e83c-4f69-b9d8-c0198cddd5ae"
+migrations_dir = "migrations"
+
+# §9/§15 — R2 media bucket intentionally OMITTED until R2 is enabled.
+# WORKERS_RATE_LIMITING intentionally OMITTED: the [[ratelimits]] bindings would
+# fail `wrangler deploy` (placeholder namespace ids, §18.2). The worker degrades
+# gracefully when limiter bindings are absent.
+
+# Watch parties — realtime room state (Durable Object, 24h rooms).
+# No payment required; safe to deploy alongside the no-R2 interim config.
+[[durable_objects.bindings]]
+name = "PARTY_ROOM"
+class_name = "PartyRoom"
+
+[[migrations]]
+tag = "v1"
+new_classes = ["PartyRoom"]

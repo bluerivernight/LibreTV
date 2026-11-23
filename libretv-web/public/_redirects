@@ -1,0 +1,3 @@
+# Libre SPA fallback — client-side routes (/, /search) serve the app shell.
+# Vite dev already history-falls-back; this covers `wrangler pages deploy` output.
+/* /index.html 200

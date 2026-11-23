@@ -1,0 +1,26 @@
+{
+  "name": "libretv",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Libre — $0 Cloudflare-first streaming MVP (Pages SPA + Worker API + D1 + R2)",
+  "workspaces": [
+    "worker",
+    "libretv-web",
+    "e2e"
+  ],
+  "scripts": {
+    "build": "npm run build -w worker && npm run build -w libretv-web",
+    "test": "npm run test -w worker",
+    "dev:worker": "npm run dev -w worker",
+    "dev:web": "npm run dev -w libretv-web",
+    "subs": "node --env-file=.env scripts/subs-opensubtitles.mjs"
+  },
+  "devDependencies": {
+    "typescript": "^5.6.3"
+  },
+  "allowScripts": {
+    "esbuild@0.28.1": true,
+    "workerd@1.20260815.1": true,
+    "workerd@1.20260910.1": true
+  }
+}

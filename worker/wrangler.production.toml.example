@@ -1,0 +1,54 @@
+# Production configuration EXAMPLE — deploy target is `wrangler deploy --config wrangler.production.toml`.
+# Differs from wrangler.toml only by enabling the §18 Workers Rate Limiting API bindings.
+#
+# Pre-deployment (documented, NOT executed here):
+#   1. wrangler d1 create libre-db   → paste database_id into [[d1_databases]]
+#   2. wrangler r2 bucket create libre-media
+#   3. Create rate-limit rules on your account and paste real namespace ids below.
+#   4. wrangler secret put R2_SECRET_ACCESS_KEY
+#   5. Remove "http://localhost:5173" from ALLOWED_ORIGINS (§14).
+#
+# The namespace_id values below are EXAMPLE ONLY (§18.2). Placeholders are never
+# shipped as production configuration.
+
+name = "libre-api"
+main = "src/index.ts"
+compatibility_date = "2026-09-11"
+
+[vars]
+ALLOWED_ORIGINS = "https://libre.tv"
+R2_ACCOUNT_ID = "YOUR_R2_ACCOUNT_ID"
+R2_ACCESS_KEY_ID = "YOUR_R2_ACCESS_KEY_ID"
+PLAYBACK_PRESIGN_TTL_SECONDS = "1800"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "libre-db"
+database_id = "00000000-0000-0000-0000-000000000000"
+migrations_dir = "migrations"
+
+[[r2_buckets]]
+binding = "MEDIA_BUCKET"
+bucket_name = "libre-media"
+
+# §18.1 — Workers Rate Limiting API. Real namespace ids required.
+[[ratelimits]]
+name = "AUTH_LIMITER"
+namespace_id = "1001" # EXAMPLE ONLY — replace at deployment
+[ratelimits.simple]
+limit = 10
+period = 60
+
+[[ratelimits]]
+name = "API_LIMITER"
+namespace_id = "1002" # EXAMPLE ONLY — replace at deployment
+[ratelimits.simple]
+limit = 100
+period = 60
+
+[[ratelimits]]
+name = "PLAYBACK_LIMITER"
+namespace_id = "1003" # EXAMPLE ONLY — replace at deployment
+[ratelimits.simple]
+limit = 30
+period = 60

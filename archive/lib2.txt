@@ -1,0 +1,16 @@
+﻿  force?: boolean;
+  dryRun?: boolean;
+}
+
+/** Injectable side-effecting surface runIngest calls (all other side is pure). */
+export interface IngestDeps {
+  probe: (sourcePath: string) => Promise<ProbeResult>;
+  ffmpegVersion: () => Promise<string>;
+  transcode: (sourcePath: string, rendition: AbrRendition, destKey: string) => Promise<number>;
+  r2Put: (storageKey: string, body: string | Uint8Array) => Promise<void>;
+  assetExists: (storageKey: string) => Promise<boolean>;
+  insertAsset: (row: AssetRecord) => Promise<void>;
+}
+
+/** Success/failure report returned by runIngest. */
+export interface IngestReport {

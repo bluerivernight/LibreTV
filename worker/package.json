@@ -1,0 +1,23 @@
+{
+  "name": "@libre/worker",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Libre API Worker — auth, media, search, playback authorization (D1 + R2) on Cloudflare Workers Free plan",
+  "scripts": {
+    "dev": "wrangler dev",
+    "typecheck": "tsc --noEmit",
+    "build": "tsc --noEmit && wrangler deploy --dry-run --outdir dist",
+    "deploy": "wrangler deploy",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "migrate:local": "wrangler d1 migrations apply libre-db --local",
+    "seed:local": "wrangler d1 execute libre-db --local --file tests/fixtures/seed.sql"
+  },
+  "devDependencies": {
+    "@cloudflare/vitest-plugin": "^1.1.7",
+    "@cloudflare/workers-types": "^5.20260911.1",
+    "typescript": "^5.6.3",
+    "vitest": "^4.1.0",
+    "wrangler": "^4.131.0"
+  }
+}

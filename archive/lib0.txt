@@ -1,0 +1,16 @@
+﻿// Libre â€” ingest core (M3 Phase 1). Pure DI core, hermetic-testable with no
+// external tools: every real side is injected through IngestDeps. The CLI
+// (ingest/cli.ts) composes real deps; the hermetic tests (ingest/ingest.test.ts)
+// inject fakes typeof the same surface.
+
+/** A single canonical ABR rendition spec in the Â§9.1 ladder. */
+export interface AbrRendition {
+  name: string;
+  bitrate: number;
+  resolution: string;
+}
+
+/** Assest-row shape persisted to the D1 `assets` table (seed contract). */
+export interface AssetRecord {
+  storageKey: string;
+  rendition: string;

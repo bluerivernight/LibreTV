@@ -1,0 +1,16 @@
+﻿  ok: boolean;
+  masterKey: string;
+  renditionKeys: string[];
+  assetRows: AssetRecord[];
+}
+
+/** Canonical ladder strings used when callers omit `renditions`. */
+export const RENDITIONS_DEFAULT = "720p,480p";
+
+/** Â§9.1 ladder lookup: rendition name â†’ AbrRendition (720p, 480p seed). */
+const RENDITION_TABLE: Record<string, AbrRendition> = {
+  "720p": { name: "720p", bitrate: 2_400_000, resolution: "1280x720" },
+  "480p": { name: "480p", bitrate: 1_200_000, resolution: "854x480" },
+};
+
+function buildLadderText(text: string): string[] {

@@ -1,0 +1,16 @@
+﻿  container: string;
+  durationSeconds: number;
+}
+
+/** Outcome of probing the source with ffprobe (Â°Â§9.6). */
+export interface ProbeResult {
+  format: string;
+  durationSeconds: number;
+  streams: { codecType: string; codecName: string; width?: number; height?: number }[];
+}
+
+/** Options accepted by runIngest (snake_case sourcePath/episode keys). */
+export interface IngestOptions {
+  sourcePath: string;
+  episode: string;
+  renditions?: string;

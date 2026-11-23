@@ -1,0 +1,16 @@
+﻿  return text.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
+}
+
+/**
+ * Build the ABR ladder from a comma-separated rendition string.
+ * Empty input or an unknown rendition â†’ IngestError exit 1.
+ */
+export function buildLadder(renditions: string): AbrRendition[] {
+  const names = renditions.split(",").map((s) => s.trim()).filter((s) => s.length > 0);
+  if (names.length === 0) throw new IngestError("renditions may not be empty", 1);
+  const ladder = names.map((name) => {
+    const r = RENDITION_TABLE[name];
+    if (!r) throw new IngestError(`unsupported rendition '${name}' â€” ladder is 720p,480p`, 1);
+    return r;
+  });
+  return ladder;

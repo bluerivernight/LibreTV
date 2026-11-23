@@ -1,0 +1,20 @@
+// HLS fixtures for worker tests — mirror the layout produced by ingest/ingest.sh.
+
+export const HLS_MASTER = `#EXTM3U
+#EXT-X-VERSION:3
+#EXT-X-STREAM-INF:BANDWIDTH=2400000,RESOLUTION=1280x720,CODECS="avc1.64001f,mp4a.40.2"
+720p/playlist.m3u8
+#EXT-X-STREAM-INF:BANDWIDTH=1200000,RESOLUTION=854x480,CODECS="avc1.4d401f,mp4a.40.2"
+480p/playlist.m3u8
+`;
+
+export const HLS_MEDIA = `#EXTM3U
+#EXT-X-VERSION:3
+#EXT-X-TARGETDURATION:2
+#EXT-X-MEDIA-SEQUENCE:0
+#EXTINF:2.0,
+seg000.ts
+#EXTINF:2.0,
+seg001.ts
+#EXT-X-ENDLIST
+`;

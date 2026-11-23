@@ -1,0 +1,9 @@
+[
+  {
+    "AllowedOrigins": ["https://libre.tv"],
+    "AllowedMethods": ["GET", "HEAD"],
+    "AllowedHeaders": ["Range"],
+    "ExposeHeaders": ["Content-Length", "Content-Range", "ETag", "Accept-Ranges"],
+    "MaxAgeSeconds": 3600
+  }
+]

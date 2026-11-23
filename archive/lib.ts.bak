@@ -1,0 +1,185 @@
+// Libre — media ingestion core (§20/§9, M3 Phase 1). Pure dependency-injected
+// module, workerd-safe: no Node builtins, no ffmpeg, no wrangler. The real
+// Bash/PowerShell/Node runners drive it through cli.ts; the 9 mandated hermetic
+// vitest tests drive it directly with hermetic fakes that mirror the canonical
+// seed.sql asset contract (storage_key, media_type='hls', rendition, container,
+// is_enabled) and the §9.1 storage layout.
+//
+// Canonical storage layout (MUST match seed.sql + Worker playback routes):
+//   media/<dir>/master.m3u8                        (asset: rendition NULL)
+//   media/<dir>/<rendition>/playlist.m3u8          (asset: rendition <rendition>)
+//   media/<dir>/<rendition>/segNNNN.ts             (segments, container 'ts')
+//
+// Exit-code taxonomy (shared by hermetic core, ingest.sh, ingest.ps1):
+//   0 ok · 1 usage/args · 2 missing tool(none) · 3 source invalid · 4 transcode/
+//   HLS validation failed · 5 duplicate storage_key without --force · 6 R2
+//   upload failed · 7 D1 write failed · 8 internal/optional-topology-error.
+//
+// DI design: every real side (ffprobe/ffmpeg/wrangler r2/wrangler d1) is an
+// injected function. The hermetic core cannot shell out; tests inject fakes
+// that return seed-shaped data. exit-code contract is the ONLY handshake
+// between hermetic core and real runners.
+
+export type MediaType = "hls";
+export type Container = "ts";
+
+/** §9.1 ABR rendition (canonical ladder — MUST match seed.sql renditions). */
+export interface AbrRendition {
+  name: string;
+  width: number;
+  height: number;
+  bandwidth: number;
+  codecs: string;
+}
+
+export interface ProbeStream {
+  index: number;
+  codec_type: string;
+  codec_name?: string;
+  width?: number;
+  height?: number;
+}
+
+export interface ProbeResult {
+  format_duration?: string;
+  format_size?: string;
+  streams: ProbeStream[];
+}
+
+export interface TranscodeInput {
+  sourcePath: string;
+  dir: string;
+  rend: AbrRendition;
+}
+
+export interface AssetRecord {
+  id: string;
+  episodeId: string;
+  storageKey: string;
+  mediaType: MediaType;
+  rendition: string | null;
+  container: Container | null;
+  codecsJson: string;
+}
+
+/** Hermetic DI surface — everything real (ffprobe/ffmpeg/R2/D1) injects here. */
+export interface IngestDeps {
+  /** `ffprobe` replacement. Throws baseError 3 if the source is invalid. */
+  probe(sourcePath: string): Promise<ProbeResult>;
+  /** `ffmpeg -version` replacement. Throws baseError 2 (missing tool). */
+  ffmpegVersion(): Promise<string>;
+  /** `ffmpeg` transcode replacement. Throws baseError 4 on transcode failure. */
+  transcode(input: TranscodeInput): Promise<number>; // returns segment count
+  /** `wrangler r2 object put` replacement. Throws baseError 6. */
+  r2Put(storageKey: string, localPath: string): Promise<void>;
+  /** D1 `assets` lookup by storage_key. */
+  assetExists(storageKey: string): Promise<boolean>;
+  /** D1 `assets` insert. Throws baseError 7. */
+  insertAsset(row: AssetRecord): Promise<void>;
+}
+
+// ---------------------------------------------------------------------------
+// §9.1 hermetic core: canonical ABR ladder + pure HLS text helpers + the DI
+// orchestrator (runIngest). Exit-code taxonomy shared with the 9 hermetic tests
+// and cli.ts: 0 ok W 1 usage/args W 2 missing tool (ffmpeg/ffprobe) W 3 source
+// invalid W 4 transcode/HLS validation failed W 5 duplicate storage_key without
+// --force W 6 R2 upload failed W 7 D1 write failed.
+// ---------------------------------------------------------------------------
+
+/** Canonical default ladder (MUST match seed.sql renditions + Worker lookup). */
+export const LADDER_DEFAULT = "720p,480p";
+
+/** §9.1 canonical ladder table — MUST match seed.sql renditions + Worker lookup. */
+const LADDER_TABLE: Record<string, AbrRendition> = {
+  "720p": { name: "720p", width: 1280, height: 720, bandwidth: 2400000, codecs: "avc1.64001f,mp4a.40.2" },
+  "480p": { name: "480p", width: 854, height: 480, bandwidth: 1200000, codecs: "avc1.4d401f,mp4a.40.2" },
+};
+
+/** Build the ABR ladder from a grounded CSV. Empty/unknown → IngestError 1. */
+export function buildLadder(renditions: string): AbrRendition[] {
+  const chosen = renditions
+    .split(",")
+    .map((r) => r.trim())
+    .filter((r) => r.length > 0);
+  if (chosen.length === 0) throw new IngestError("renditions may not be empty", 1);
+  return chosen.map((name) => {
+    const r = LADDER_TABLE[name];
+    if (!r) throw new IngestError(`unsupported rendition '${name}' (ladder: 720p,480p)`, 1);
+    return r;
+  });
+}
+
+/** §9.1 canonical master storage_key — MUST match seed.sql + Worker lookup. */
+export function storageKeyForMaster(dir: string): string {
+  return `media/${dir}/master.m3u8`;
+}
+
+/** §9.1 canonical rendition playlist storage_key. */
+export function storageKeyForRendition(dir: string, rend: string): string {
+  return `media/${dir}/${rend}/playlist.m3u8`;
+}
+
+/** §9.1 canonical segment storage_key. */
+export function segmentStorageKeyForRendition(dir: string, rend: string, seq: number): string {
+  return `media/${dir}/${rend}/seg${String(seq).padStart(4, "0")}.ts`;
+}
+
+export interface IngestOptions {
+  sourcePath: string;
+  episode: string;
+  dir?: string;
+  renditions?: string;
+  force?: boolean;
+  dryRun?: boolean;
+}
+
+export interface IngestReport {
+  ok: boolean;
+  dryRun: boolean;
+  episode: string;
+  dir: string;
+  renditions: string[];
+  masterKey: string | null;
+  renditionKeys: string[];
+  assetRows: AssetRecord[];
+  segmentCount: number;
+}
+
+export class IngestError extends Error {
+  constructor(
+    message: string,
+    public readonly code: number,
+  ) {
+    super(`ingest error ${code}: ${message}`);
+  }
+}
+
+/** §9.1 ABR ladder (canonical — MUST match seed.sql renditions + Worker lookup). */
+export const LADDER_DEFAULT = "720p,480p";
+
+const LADDER_TABLE: Record<string, AbrRendition> = {
+  "720p": { name: "720p", width: 1280, height: 720, bandwidth: 2400000, codecs: "avc1.64001f,mp4a.40.2" },
+  "480p": { name: "480p", width: 854, height: 480, bandwidth: 1200000, codecs: "avc1.4d401f,mp4a.40.2" },
+};
+
+/** §9.1 canonical ladder from a grounded CSV. Empty/unknown → IngestError 1. */
+export function buildLadder(renditions: string): AbrRendition[] {
+  const chosen = renditions.split(",").map((r) => r.trim()).filter(Boolean);
+  if (chosen.length === 0) throw new IngestError("renditions may not be empty", 1);
+  return chosen.map((name) => {
+    const r = LADDER_TABLE[name];
+    if (!r) throw new IngestError(`unsupported rendition '${name}' — ladder is 720p,480p`, 1);
+    return r;
+  });
+}
+
+/** §9.1 canonical storage_key derivation — must match seed assets + Worker lookup. */
+export function storageKeyForMaster(dir: string): string {
+  return `media/${dir}/master.m3u8`;
+}
+export function storageKeyForRendition(dir: string, rend: string): string {
+  return `media/${dir}/${rend}/playlist.m3u8`;
+}
+export function segmentStorageKeyForRendition(dir: string, rend: string, segIndex: number): string {
+  return `media/${dir}/${rend}/seg${String(segIndex).padStart(4, "0")}.ts`;
+}

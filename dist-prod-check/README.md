@@ -1,0 +1,1 @@
+This folder contains the built output assets for the worker "libre-api" generated at 2026-09-23T10:09:12.778Z.
